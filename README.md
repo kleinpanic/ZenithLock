@@ -28,7 +28,7 @@
 
 ## Project Overview
 
-*KleinCrypto Suite* is a command‑line tool that allows the user to encrypt, decrypt, and generate keys for a variety of cryptographic algorithms. The tool is modular in design—each algorithm is implemented in its own module, with a common interface to ease integration. The goal is to eventually support nearly every algorithm listed in the [Wikipedia Cryptographic Algorithms category](https://en.wikipedia.org/wiki/Category:Cryptographic_algorithms).
+*ZenithLock* is a command‑line tool that allows the user to encrypt, decrypt, and generate keys for a variety of cryptographic algorithms. The tool is modular in design—each algorithm is implemented in its own module, with a common interface to ease integration. The goal is to eventually support nearly every algorithm listed in the [Wikipedia Cryptographic Algorithms category](https://en.wikipedia.org/wiki/Category:Cryptographic_algorithms).
 
 ---
 
@@ -336,11 +336,10 @@ The following enhancements are planned:
 
 Contributing and Licensing
 
-Contributions to KleinCrypto Suite are welcome. Due to the sensitive nature of cryptographic code, all contributions must adhere to strict coding standards and undergo rigorous testing and peer review.
+Contributions to ZenithLock are welcome. Due to the sensitive nature of cryptographic code, all contributions must adhere to strict coding standards and undergo rigorous testing and peer review.
 This project is licensed under the MIT License. See the LICENSE file for details.
 
 Happy coding and secure cryptographing!
-— Kleinpanic and the KleinCrypto Suite Team
-
+— Kleinpanic and the ZenithLock Suite Team
 
 ---
