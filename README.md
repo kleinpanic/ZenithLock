@@ -44,6 +44,7 @@ The core design principle is to use a common function signature for each algorit
 
 ```c
 int algo_crypt(const char *input, const char *key, int shift, mode_t mode, int otp, char *output);
+```
 
 This allows the main CLI driver to select the algorithm based on a command‑line flag and then pass along any parameters (such as key, shift value, OTP mode, and encoding) in a consistent manner.
 Supported Algorithms
