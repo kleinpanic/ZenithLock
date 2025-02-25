@@ -1,8 +1,6 @@
-README.md
+# ZenithLock
 
-# KleinCrypto Suite
-
-**KleinCrypto Suite** is an advanced, modular cryptographic toolkit written entirely in C. Designed to be a one-stop command‑line solution for a wide array of cryptographic algorithms—from classical ciphers (such as XOR, Caesar, Vigenère, etc.) to modern symmetric algorithms (AES, DES, IDEA, RC6, ChaCha20, Salsa20, CAST5) and even hash/HMAC functions (SHA‑256, HMAC‑SHA256)—this project is intended as both a research/development platform and a learning resource for cryptographic programming in C.
+**ZenithLock** is an advanced, modular cryptographic toolkit written entirely in C. Designed to be a one-stop command‑line solution for a wide array of cryptographic algorithms—from classical ciphers (such as XOR, Caesar, Vigenère, etc.) to modern symmetric algorithms (AES, DES, IDEA, RC6, ChaCha20, Salsa20, CAST5) and even hash/HMAC functions (SHA‑256, HMAC‑SHA256)—this project is intended as both a research/development platform and a learning resource for cryptographic programming in C.
 
 > **Disclaimer:**  
 > Although every effort has been made to implement each algorithm according to its published specification and with attention to constant‑time techniques and security best practices, producing production‑grade cryptography requires rigorous testing, formal verification, and external audits. This project is provided as an educational tool and reference framework.
