@@ -1,0 +1,112 @@
+.\" Manpage for encryptor
+.TH ENCRYPTOR 1 "2025-02-20" "KleinCrypto Suite" "User Commands"
+.SH NAME
+encryptor \- a modular command‑line cryptographic toolkit
+.SH SYNOPSIS
+.B encryptor
+.I [OPTIONS]
+.SH DESCRIPTION
+.B encryptor
+is a command‑line tool that implements a wide range of cryptographic algorithms. It supports classical ciphers, modern block and stream ciphers, as well as cryptographic hash functions and HMAC computation. All algorithms adhere to a common interface allowing uniform usage via command‑line flags.
+.PP
+The general command syntax is:
+.RS
+.nf
+./encryptor -a algorithm -i input -o output [-k key] [-s shift] [-d] [-p] [-e encoding] [-G]
+.fi
+.RE
+.SH OPTIONS
+.TP
+.B -a algorithm
+Specifies the algorithm to use. Supported algorithms include:
+.IP "Classical Ciphers:"
+"xor, caesar, vigenere, beaufort, atbash, rot13, affine, railfence, playfair, columnar, scytale"
+.IP "Modern Ciphers:"
+"rc4, xtea, aes, des, chacha20, idea, serpent, blowfish, twofish, rc6, cast5, rc6, salsa20"
+.IP "Hash/HMAC Functions:"
+"sha256, hmac_sha256"
+.SH
+.TP
+.B -i input
+Specifies the input text. For encryption, this is plaintext; for decryption, this is typically a hex- or base64-encoded ciphertext.
+.TP
+.B -o output
+Specifies the output file. In key-generation mode (-G), this file will contain the generated key.
+.TP
+.B -k key
+Provides the key for algorithms that require it. Keys must match the expected length. For example, AES and CAST5 expect a 16‑character raw key or a 32‑character hex-encoded key.
+.TP
+.B -s shift
+Provides a shift value or, for transposition ciphers, the number of rails or columns.
+.TP
+.B -d
+Enables decryption mode. By default, the tool operates in encryption mode.
+.TP
+.B -p
+Enables One-Time Pad (OTP) mode. In this mode, the provided key must be exactly the same length as the input.
+.TP
+.B -e encoding
+Specifies an additional encoding to apply. For example, "base64" may be used to encode the final ciphertext.
+.TP
+.B -G
+Enables key-generation mode. When this flag is used, the tool generates a key suitable for the specified algorithm and saves it to the output file or prints it to standard output.
+.SH USAGE EXAMPLES
+.PP
+For **AES Encryption**:
+.RS
+.nf
+Generate a key:
+  ./encryptor -a aes -G -o aes_key.txt
+Use the generated key for encryption:
+  ./encryptor -a aes -i "Secret Message" -o cipher.txt -k $(cat aes_key.txt)
+Use the same key for decryption:
+  ./encryptor -a aes -d -i "EncryptedHexText" -o plain.txt -k $(cat aes_key.txt)
+.fi
+.RE
+.PP
+For **CAST5 Encryption**:
+.RS
+.nf
+Generate a key:
+  ./encryptor -a cast5 -G -o cast5_key.txt
+Encrypt a message:
+  ./encryptor -a cast5 -i "Secret Message" -o cast5_cipher.txt -k $(cat cast5_key.txt)
+.fi
+.RE
+.PP
+For **SHA‑256 Hashing** (one‑way):
+.RS
+.nf
+  ./encryptor -a sha256 -i "Secret Message" -o hash.txt
+.fi
+.RE
+.PP
+For **HMAC‑SHA256**:
+.RS
+.nf
+Generate a key:
+  ./encryptor -a hmac_sha256 -G -o hmac_key.txt
+Compute HMAC:
+  ./encryptor -a hmac_sha256 -i "Secret Message" -o hmac.txt -k $(cat hmac_key.txt)
+.fi
+.RE
+.SH FUTURE WORK
+This tool aims to eventually implement all algorithms listed in the Wikipedia [Cryptographic Algorithms](https://en.wikipedia.org/wiki/Category:Cryptographic_algorithms) category. Planned future additions include:
+.RS
+.IP Camellia
+.IP RC6 (further refined)
+.IP Salsa20 (optimized version)
+.IP SM4
+.IP RSA (complete public-key support with key-pair generation)
+.IP Elliptic Curve Cryptography (ECC)
+.IP SHA‑3 and BLAKE2 hash functions
+.RE
+.SH DEPENDENCIES
+The tool requires a POSIX‑compliant system, a C99‑compatible compiler (e.g. GCC), and standard C libraries. It also utilizes `/dev/urandom` for secure randomness.
+.SH AUTHORS
+Kleinpanic
+.SH COPYRIGHT AND LICENSE
+This program is distributed under the MIT License. See the LICENSE file for details.
+.SH SEE ALSO
+OpenSSL(1), libsodium(3), BoringSSL(1)
+
