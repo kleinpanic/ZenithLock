@@ -1,59 +1,38 @@
 #include "blowfish.h"
-#include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-#include <ctype.h>
+#include <stdio.h>
 
-/* Standard Blowfish constants (the initial P-array and S-boxes).
-   These values are taken from Bruce Schneier’s original specification.
-*/
-static const uint32_t ORIG_P[18] = {
-    0x243F6A88, 0x85A308D3, 0x13198A2E, 0x03707344,
-    0xA4093822, 0x299F31D0, 0x082EFA98, 0xEC4E6C89,
-    0x452821E6, 0x38D01377, 0xBE5466CF, 0x34E90C6C,
-    0xC0AC29B7, 0xC97C50DD, 0x3F84D5B5, 0xB5470917,
-    0x9216D5D9, 0x8979FB1B
-};
-
-/* For brevity, we show one S-box in full; the other three S-boxes (S2, S3, S4)
-   should be defined similarly with the standard 256‑element arrays.
-   In a full implementation, include all four S‑boxes.
-*/
-static const uint32_t ORIG_S[4][256] = {
-    { 
-      0xd1310ba6,0x98dfb5ac,0x2ffd72db,0xd01adfb7, /* ... 252 more entries ... */ 0x4a7484aa,0x6ea6e483
-    },
-    { /* S-box 2 values (256 entries) */ },
-    { /* S-box 3 values (256 entries) */ },
-    { /* S-box 4 values (256 entries) */ }
-};
-
-/* Blowfish context holding the expanded P-array and S-boxes */
+/* Blowfish context: expanded P-array and S-boxes */
 typedef struct {
     uint32_t P[18];
     uint32_t S[4][256];
 } BlowfishContext;
 
-/* The F function as defined by Blowfish */
-static inline uint32_t F(BlowfishContext *ctx, uint32_t x) {
-    uint8_t a = x >> 24;
+/* F-function */
+static inline uint32_t F(const BlowfishContext *ctx, uint32_t x) {
+    uint8_t a = (x >> 24) & 0xFF;
     uint8_t b = (x >> 16) & 0xFF;
-    uint8_t c = (x >> 8) & 0xFF;
-    uint8_t d = x & 0xFF;
+    uint8_t c = (x >>  8) & 0xFF;
+    uint8_t d =  x        & 0xFF;
     return ((ctx->S[0][a] + ctx->S[1][b]) ^ ctx->S[2][c]) + ctx->S[3][d];
 }
 
-/* Initialize Blowfish context with a given key */
-static void blowfish_init(BlowfishContext *ctx, const uint8_t *key, int keyLen) {
-    int i, j;
-    /* Copy the initial P-array and S-boxes */
+/* Key expansion / context initialization */
+static void blowfish_init(BlowfishContext *ctx,
+                          const uint8_t *key,
+                          size_t keyLen)
+{
+    /* 1) Copy the original tables */
     memcpy(ctx->P, ORIG_P, sizeof(ORIG_P));
-    for (i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++) {
         memcpy(ctx->S[i], ORIG_S[i], sizeof(ORIG_S[i]));
     }
-    j = 0;
-    for (i = 0; i < 18; i++) {
+
+    /* 2) XOR P-array with key bytes (cycling) */
+    int j = 0;
+    for (int i = 0; i < 18; i++) {
         uint32_t data = 0;
         for (int k = 0; k < 4; k++) {
             data = (data << 8) | key[j];
@@ -61,154 +40,158 @@ static void blowfish_init(BlowfishContext *ctx, const uint8_t *key, int keyLen) 
         }
         ctx->P[i] ^= data;
     }
-    uint32_t block[2] = {0, 0};
-    for (i = 0; i < 18; i += 2) {
-        /* Encrypt the zero block */
-        // Note: Use the basic encrypt_block function below
-        // to update the context’s P-array
-        uint32_t L = block[0], R = block[1];
-        for (int round = 0; round < 16; round++) {
-            L ^= ctx->P[round];
+
+    /* 3) Re-key P-array & S-boxes by encrypting zero blocks */
+    uint32_t L = 0, R = 0, tmp;
+    for (int i = 0; i < 18; i += 2) {
+        for (int r = 0; r < 16; r++) {
+            L ^= ctx->P[r];
             R ^= F(ctx, L);
-            // Swap L and R
-            uint32_t temp = L; L = R; R = temp;
+            tmp = L; L = R; R = tmp;
         }
-        // Undo final swap
-        uint32_t temp = L; L = R; R = temp;
+        tmp = L; L = R; R = tmp;
         R ^= ctx->P[16];
         L ^= ctx->P[17];
-        block[0] = L; block[1] = R;
-        ctx->P[i] = L; ctx->P[i+1] = R;
+        ctx->P[i]   = L;
+        ctx->P[i+1] = R;
     }
-    /* Similarly update S-boxes */
-    for (i = 0; i < 4; i++) {
-        for (j = 0; j < 256; j += 2) {
-            uint32_t L = block[0], R = block[1];
-            for (int round = 0; round < 16; round++) {
-                L ^= ctx->P[round];
+    for (int s = 0; s < 4; s++) {
+        for (int i = 0; i < 256; i += 2) {
+            for (int r = 0; r < 16; r++) {
+                L ^= ctx->P[r];
                 R ^= F(ctx, L);
-                uint32_t temp = L; L = R; R = temp;
+                tmp = L; L = R; R = tmp;
             }
-            uint32_t temp = L; L = R; R = temp;
+            tmp = L; L = R; R = tmp;
             R ^= ctx->P[16];
             L ^= ctx->P[17];
-            block[0] = L; block[1] = R;
-            ctx->S[i][j] = L;
-            ctx->S[i][j+1] = R;
+            ctx->S[s][i]   = L;
+            ctx->S[s][i+1] = R;
         }
     }
 }
 
-/* Encrypt a single 64-bit block (8 bytes) */
-static void blowfish_encrypt_block(BlowfishContext *ctx, uint32_t *L, uint32_t *R) {
-    uint32_t l = *L, r = *R;
-    for (int round = 0; round < 16; round++) {
-        l ^= ctx->P[round];
+/* Encrypt one 64-bit block */
+static void blowfish_encrypt_block(const BlowfishContext *ctx,
+                                   uint32_t *L, uint32_t *R)
+{
+    uint32_t l = *L, r = *R, tmp;
+    for (int i = 0; i < 16; i++) {
+        l ^= ctx->P[i];
         r ^= F(ctx, l);
-        uint32_t tmp = l; l = r; r = tmp;
+        tmp = l; l = r; r = tmp;
     }
-    uint32_t tmp = l; l = r; r = tmp;
+    tmp = l; l = r; r = tmp;
     r ^= ctx->P[16];
     l ^= ctx->P[17];
     *L = l; *R = r;
 }
 
-/* Decrypt a single block (reverse of encryption) */
-static void blowfish_decrypt_block(BlowfishContext *ctx, uint32_t *L, uint32_t *R) {
-    uint32_t l = *L, r = *R;
-    l ^= ctx->P[17]; r ^= ctx->P[16];
-    for (int round = 15; round >= 0; round--) {
-        uint32_t tmp = l; l = r; r = tmp;
+/* Decrypt one 64-bit block */
+static void blowfish_decrypt_block(const BlowfishContext *ctx,
+                                   uint32_t *L, uint32_t *R)
+{
+    uint32_t l = *L, r = *R, tmp;
+    l ^= ctx->P[17];
+    r ^= ctx->P[16];
+    for (int i = 15; i >= 0; i--) {
+        tmp = l; l = r; r = tmp;
         r ^= F(ctx, l);
-        l ^= ctx->P[round];
+        l ^= ctx->P[i];
     }
     *L = l; *R = r;
 }
 
-/* Helper functions for PKCS#7 padding and hex conversion would go here.
-   For brevity, assume you implement:
-     - pkcs7_pad_blown(void *buffer, size_t data_len, size_t block_size)
-     - pkcs7_unpad_blown(void *buffer, size_t block_size)
-     - bin_to_hex_blown() and hex_to_bin_blown()
-*/
+/* Helpers */
+static void pkcs7_pad(uint8_t *buf, size_t data_len, size_t blk) {
+    uint8_t p = (uint8_t)(blk - (data_len % blk));
+    for (size_t i = data_len; i < data_len + p; i++) buf[i] = p;
+}
+static int pkcs7_unpad(uint8_t *buf, size_t len) {
+    uint8_t p = buf[len - 1];
+    if (p == 0 || p > len) return -1;
+    for (size_t i = len - p; i < len; i++)
+        if (buf[i] != p) return -1;
+    return (int)p;
+}
+static void bin_to_hex(const uint8_t *bin, size_t n, char *hex) {
+    static const char *h = "0123456789ABCDEF";
+    for (size_t i = 0; i < n; i++) {
+        hex[2*i]   = h[(bin[i] >> 4) & 0xF];
+        hex[2*i+1] = h[ bin[i]       & 0xF];
+    }
+    hex[2*n] = '\0';
+}
+static int hex_to_bin(const char *hex, uint8_t *bin, size_t n) {
+    size_t len = strlen(hex);
+    if (len != 2*n) return -1;
+    for (size_t i = 0; i < n; i++) {
+        unsigned int v;
+        if (sscanf(hex + 2*i, "%2X", &v) != 1) return -1;
+        bin[i] = (uint8_t)v;
+    }
+    return 0;
+}
 
-/* The public function: processes the input string with padding,
-   encryption (producing hex output) or decryption.
-   The 'shift' and 'otp' flags are ignored for Blowfish.
-*/
-int blowfish_crypt(const char *input, const char *key, int shift, mode_t mode, int otp, char *output) {
-    (void) shift; (void) otp;
-    int keyLen = strlen(key);
+int blowfish_crypt(const char *input,
+                   const char *key,
+                   int shift,
+                   mode_t mode,
+                   int otp,
+                   char *output)
+{
+    (void)shift; (void)otp;
+    size_t keyLen = strlen(key);
     if (keyLen < 4 || keyLen > 56) {
-        fprintf(stderr, "Blowfish key length must be between 4 and 56 characters.\n");
+        fprintf(stderr, "Blowfish key must be 4–56 bytes\n");
         return -1;
     }
+
     BlowfishContext ctx;
     blowfish_init(&ctx, (const uint8_t*)key, keyLen);
 
-    /* For simplicity, we assume input is a null‑terminated string.
-       On encryption, we apply PKCS#7 padding to make the length a multiple of 8,
-       encrypt block‑by‑block, then convert the binary result to a hex string.
-       On decryption, we convert the hex string back to binary, decrypt block‑by‑block,
-       remove padding, and output the plaintext.
-    */
     if (mode == MODE_ENCRYPT) {
-        size_t in_len = strlen(input);
-        size_t pad = 8 - (in_len % 8);
-        size_t total = in_len + pad;
-        uint8_t *buffer = calloc(total, 1);
-        if (!buffer) return -1;
-        memcpy(buffer, input, in_len);
-        for (size_t i = in_len; i < total; i++) {
-            buffer[i] = (uint8_t) pad;
-        }
-        for (size_t i = 0; i < total; i += 8) {
+        size_t inlen = strlen(input);
+        size_t pad   = 8 - (inlen % 8);
+        size_t tot   = inlen + pad;
+        uint8_t *buf = malloc(tot);
+        if (!buf) return -1;
+        memcpy(buf, input, inlen);
+        memset(buf + inlen, (uint8_t)pad, pad);
+        for (size_t i = 0; i < tot; i += 8) {
             uint32_t L, R;
-            memcpy(&L, buffer + i, 4);
-            memcpy(&R, buffer + i + 4, 4);
+            memcpy(&L, buf + i,     4);
+            memcpy(&R, buf + i + 4, 4);
             blowfish_encrypt_block(&ctx, &L, &R);
-            memcpy(buffer + i, &L, 4);
-            memcpy(buffer + i + 4, &R, 4);
+            memcpy(buf + i,     &L, 4);
+            memcpy(buf + i + 4, &R, 4);
         }
-        /* Convert binary buffer to hex string.
-           (Implement a function bin_to_hex() that writes hex into output.)
-        */
-        // For illustration:
-        for (size_t i = 0; i < total; i++) {
-            sprintf(output + i*2, "%02X", buffer[i]);
-        }
-        free(buffer);
-    } else { // MODE_DECRYPT
-        /* First, convert hex string to binary.
-           (Implement a function hex_to_bin() to do this.)
-        */
-        size_t hex_len = strlen(input);
-        if (hex_len % 16 != 0) {
-            fprintf(stderr, "Invalid ciphertext length.\n");
+        bin_to_hex(buf, tot, output);
+        free(buf);
+    } else {
+        size_t hexlen = strlen(input);
+        if (hexlen % 16) {
+            fprintf(stderr, "Invalid ciphertext length\n");
             return -1;
         }
-        size_t total = hex_len / 2;
-        uint8_t *buffer = malloc(total);
-        if (!buffer) return -1;
-        for (size_t i = 0; i < total; i++) {
-            unsigned int byte;
-            sscanf(input + i*2, "%2X", &byte);
-            buffer[i] = (uint8_t) byte;
-        }
-        for (size_t i = 0; i < total; i += 8) {
+        size_t tot = hexlen / 2;
+        uint8_t *buf = malloc(tot);
+        if (!buf) return -1;
+        if (hex_to_bin(input, buf, tot) != 0) { free(buf); return -1; }
+        for (size_t i = 0; i < tot; i += 8) {
             uint32_t L, R;
-            memcpy(&L, buffer + i, 4);
-            memcpy(&R, buffer + i + 4, 4);
+            memcpy(&L, buf + i,     4);
+            memcpy(&R, buf + i + 4, 4);
             blowfish_decrypt_block(&ctx, &L, &R);
-            memcpy(buffer + i, &L, 4);
-            memcpy(buffer + i + 4, &R, 4);
+            memcpy(buf + i,     &L, 4);
+            memcpy(buf + i + 4, &R, 4);
         }
-        /* Remove PKCS#7 padding */
-        uint8_t pad = buffer[total - 1];
-        size_t out_len = total - pad;
-        memcpy(output, buffer, out_len);
-        output[out_len] = '\0';
-        free(buffer);
+        int pad = pkcs7_unpad(buf, tot);
+        if (pad < 0) { free(buf); return -1; }
+        size_t outlen = tot - pad;
+        memcpy(output, buf, outlen);
+        output[outlen] = '\0';
+        free(buf);
     }
     return 0;
 }

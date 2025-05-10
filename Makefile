@@ -2,7 +2,7 @@
 
 # Compiler and flags
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -Iinclude
+CFLAGS = -Wall -Wextra -std=c99 -Iinclude -lcrypto
 
 # Directories
 SRC_DIR = src

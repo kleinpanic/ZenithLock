@@ -2,20 +2,32 @@
 #define BLOWFISH_H
 
 #include "algorithm.h"
+#include "blowfish_tables.h"
 
 /*
-   Blowfish block cipher in ECB mode.
-   - Accepts variable‑length keys (up to 448 bits).
-   - Uses a 64‑bit block size.
-   - Implements key expansion with the standard P‑array and four S‑boxes.
-   - Provides encryption and decryption with PKCS#7 padding.
-   - Outputs (on encryption) a hex‑encoded string.
-   
-   This implementation is a complete “from‑scratch” reference following the original
-   algorithm. It has been written with attention to constant‑time operations (where feasible)
-   and can be extended with inline assembly for critical routines if needed.
-*/
-int blowfish_crypt(const char *input, const char *key, int shift, mode_t mode, int otp, char *output);
+ * Blowfish-64 in ECB mode with PKCS#7 padding.
+ *
+ * - Key length: 4–56 bytes
+ * - Block size: 8 bytes
+ * - Encryption outputs hex-encoded ciphertext.
+ * - Decryption parses hex, strips PKCS#7, and null-terminates.
+ *
+ * Parameters:
+ *   input  : NUL-terminated plaintext (or hex ciphertext if decrypting)
+ *   key    : binary-safe key, length [4..56].
+ *   shift  : unused (set 0).
+ *   mode   : MODE_ENCRYPT or MODE_DECRYPT.
+ *   otp    : unused (must be 0).
+ *   output : buffer large enough for result.
+ *
+ * Returns 0 on success, -1 on error.
+ */
+int blowfish_crypt(const char *input,
+                   const char *key,
+                   int shift,
+                   mode_t mode,
+                   int otp,
+                   char *output);
 
-#endif
+#endif /* BLOWFISH_H */
 

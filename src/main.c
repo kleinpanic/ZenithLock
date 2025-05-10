@@ -25,9 +25,9 @@
 #include "serpent.h"
 #include "blowfish.h"
 #include "twofish.h"
-#include "sha256hash.h"    // New: SHA-256 hash function
-#include "hmac_sha256.h"   // New: HMAC-SHA256
-#include "keygen.h"        // New: Key generation module
+#include "sha256hash.h"
+#include "hmac_sha256.h"
+#include "keygen.h"
 #include "encoding.h"
 #include "cast5.h"
 #include "rc6.h"
@@ -37,193 +37,238 @@
 
 typedef struct {
     const char *name;
-    crypt_func crypt;
-    const char *description;
+    crypt_func    crypt;
+    const char   *description;
 } algorithm_entry_t;
 
-/* Generic placeholder for algorithms not implemented */
-static int not_implemented_crypt(const char *input, const char *key, int shift, mode_t mode, int otp, char *output) {
-    (void)input; (void)key; (void)shift; (void)mode; (void)otp; (void)output;
+/* Placeholder for algorithms not yet implemented */
+static int not_implemented_crypt(const char *input, const char *key,
+                                 int shift, mode_t mode,
+                                 int otp, char *output)
+{
+    (void)input; (void)key; (void)shift;
+    (void)mode;  (void)otp; (void)output;
     fprintf(stderr, "Error: This algorithm is not implemented yet.\n");
     return -1;
 }
 
-/* Updated algorithms array with new modules */
-algorithm_entry_t algorithms[] = {
-    {"xor", xor_crypt, "XOR cipher (requires -k key; use -p for OTP mode)"},
-    {"caesar", caesar_crypt, "Caesar cipher (requires -s shift)"},
-    {"vigenere", vigenere_crypt, "Vigenère cipher (requires -k key; use -p for OTP mode)"},
-    {"beaufort", beaufort_crypt, "Beaufort cipher (requires -k key; use -p for OTP mode)"},
-    {"rc4", rc4_crypt, "RC4 stream cipher (requires -k key)"},
-    {"atbash", atbash_crypt, "Atbash cipher (no key required)"},
-    {"rot13", rot13_crypt, "ROT13 cipher (no key required)"},
-    {"affine", affine_crypt, "Affine cipher (requires -k key in format a,b)"},
-    {"railfence", railfence_crypt, "Rail Fence cipher (requires -s rails, rails>=2)"},
-    {"playfair", playfair_crypt, "Playfair cipher (requires -k key)"},
-    {"columnar", columnar_crypt, "Columnar Transposition cipher (requires -s columns)"},
-    {"scytale", scytale_crypt, "Scytale cipher (requires -s rows)"},
-    {"rsa", rsa_crypt, "RSA encryption/decryption (requires -k key in format x,y)"},
-    {"xtea", xtea_crypt, "XTEA block cipher (requires 16-character key)"},
-    {"aes", aes_crypt, "AES-128 ECB mode (requires 16-character key)"},
-    {"des", des_crypt, "DES-ECB mode (requires 8-character key)"},
-    {"chacha20", chacha20_crypt, "ChaCha20 stream cipher (requires key in format \"32char,12char\")"},
-    {"idea", idea_crypt, "IDEA block cipher (64-bit block, 16-char key)"},
-    {"serpent", serpent_crypt, "Serpent block cipher (128-bit block, 16/24/32-char key)"},
-    {"blowfish", blowfish_crypt, "Blowfish cipher (full implementation, variable key length)"},
-    {"twofish", twofish_crypt, "Twofish cipher (full implementation skeleton)"},
-    {"hmac_sha256", hmac_sha256_crypt, "HMAC-SHA256 (computes HMAC; use -k for key)"},
-    {"sha256", sha256hash_crypt, "SHA-256 hash (one-way; no key required)"},
-    {"rc6", rc6_crypt, "RC6 block cipher (requires 16-character key or 32-character hex key)"},
-    {"salsa20", salsa20_crypt, "Salsa20 stream cipher (requires key in format \"64char,16char\")"},
-    {"cast5", cast5_crypt, "CAST5 cipher (requires 16-character key)"}
-
+/* Algorithm registration */
+static algorithm_entry_t algorithms[] = {
+    {"xor",        xor_crypt,         "XOR cipher (use -p for OTP mode)"},
+    {"caesar",     caesar_crypt,      "Caesar cipher (-s shift)"},
+    {"vigenere",   vigenere_crypt,    "Vigenère cipher (use -p for OTP mode)"},
+    {"beaufort",   beaufort_crypt,    "Beaufort cipher (use -p for OTP mode)"},
+    {"rc4",        rc4_crypt,         "RC4 stream cipher"},
+    {"atbash",     atbash_crypt,      "Atbash cipher"},
+    {"rot13",      rot13_crypt,       "ROT13 cipher"},
+    {"affine",     affine_crypt,      "Affine cipher (-k \"a,b\")"},
+    {"railfence",  railfence_crypt,   "Rail Fence cipher (-s rails)"},
+    {"playfair",   playfair_crypt,    "Playfair cipher"},
+    {"columnar",   columnar_crypt,    "Columnar Transposition (-s cols)"},
+    {"scytale",    scytale_crypt,     "Scytale cipher (-s rows)"},
+    {"rsa",        rsa_crypt,         "RSA (requires key file)"},
+    {"xtea",       xtea_crypt,        "XTEA (16-byte key)"},
+    {"aes",        aes_crypt,         "AES-128 ECB (16-byte key)"},
+    {"des",        des_crypt,         "DES-ECB (8-byte key)"},
+    {"chacha20",   chacha20_crypt,    "ChaCha20 (32-byte key,12-byte nonce)"},
+    {"idea",       idea_crypt,        "IDEA (16-byte key)"},
+    {"serpent",    serpent_crypt,     "Serpent (16/24/32-byte key)"},
+    {"blowfish",   blowfish_crypt,    "Blowfish (4–56-byte key)"},
+    {"twofish",    twofish_crypt,     "Twofish (skeleton)"},
+    {"hmac_sha256",hmac_sha256_crypt, "HMAC-SHA256"},
+    {"sha256",     sha256hash_crypt,  "SHA-256 hash"},
+    {"rc6",        rc6_crypt,         "RC6 (16 or 32-byte key)"},
+    {"salsa20",    salsa20_crypt,     "Salsa20 (32-byte key, 8-byte nonce)"},
+    {"cast5",      cast5_crypt,       "CAST5 (8 or 16-byte key)"}
 };
+#define NUM_ALGORITHMS (sizeof(algorithms)/sizeof(algorithms[0]))
 
-#define NUM_ALGORITHMS (sizeof(algorithms) / sizeof(algorithms[0]))
-
-void usage(const char *prog_name) {
-    fprintf(stderr, "Usage: %s -a algorithm -i input -o output [-k key] [-s shift] [-d] [-p] [-e encoding] [-G]\n", prog_name);
-    fprintf(stderr, "  -a algorithm : Choose algorithm (");
+void usage(const char *prog) {
+    fprintf(stderr,
+        "Usage: %s -a algorithm -i input_string -o output_file\n"
+        "       %s -a algorithm -G [-i input_for_length] [-o keyfile]\n"
+        "  -a algorithm : one of ",
+        prog, prog);
     for (size_t i = 0; i < NUM_ALGORITHMS; i++) {
-        fprintf(stderr, "%s%s", algorithms[i].name, i < NUM_ALGORITHMS - 1 ? ", " : "");
+        fprintf(stderr, "%s%s",
+                algorithms[i].name,
+                (i+1<NUM_ALGORITHMS)?", ":"\n");
     }
-    fprintf(stderr, ")\n");
-    fprintf(stderr, "  -i input     : Input text (plaintext for encryption, encoded ciphertext for decryption if -e is used)\n");
-    fprintf(stderr, "  -o output    : Output file (or key file when using -G)\n");
-    fprintf(stderr, "  -k key       : Key (if required)\n");
-    fprintf(stderr, "  -s shift     : Shift value or rail/column count (if required)\n");
-    fprintf(stderr, "  -d           : Decryption mode (default is encryption)\n");
-    fprintf(stderr, "  -p           : One-Time Pad (OTP) mode (key must equal input length)\n");
-    fprintf(stderr, "  -e encoding  : Encoding type (e.g., base64)\n");
-    fprintf(stderr, "  -G           : Key Generation mode (generate a key for the chosen algorithm)\n");
+    fprintf(stderr,
+        "  -i input     : input text (plaintext or base64 for -d -e base64)\n"
+        "  -o output    : output file (or key file for -G)\n"
+        "  -k key       : key string (if required)\n"
+        "  -s shift     : shift/rails/columns (for caesar, railfence...)\n"
+        "  -d           : decryption mode (default: encrypt)\n"
+        "  -p           : OTP mode (key length must equal input length)\n"
+        "  -e encoding  : base64 encoding/decoding\n"
+        "  -G           : generate key for algorithm\n");
 }
 
 int main(int argc, char *argv[]) {
-    char *algorithm_name = NULL;
-    char *input = NULL;
-    char *output_filename = NULL;
-    char *key = "";
-    int shift = 0;
-    mode_t mode = MODE_ENCRYPT;
-    int otp = 0;
+    char *alg_name = NULL;
+    char *inp      = NULL;
+    char *outfile  = NULL;
+    char *key      = NULL;
     char *encoding = NULL;
-    int gen_key_mode = 0;   /* Declare the key generation flag */
-    int opt;
+    int   shift    = 0;
+    int   mode     = MODE_ENCRYPT;
+    int   otp      = 0;
+    int   gen_key  = 0;
+    int   opt;
 
-    while ((opt = getopt(argc, argv, "a:i:o:k:s:dp:e:G")) != -1) {
-        switch(opt) {
-            case 'a': algorithm_name = optarg; break;
-            case 'i': input = optarg; break;
-            case 'o': output_filename = optarg; break;
-            case 'k': key = optarg; break;
-            case 's': shift = atoi(optarg); break;
-            case 'd': mode = MODE_DECRYPT; break;
-            case 'p': otp = 1; break;
-            case 'e': encoding = optarg; break;
-            case 'G': gen_key_mode = 1; break;
+    /* Fix: p is now a flag, not expecting an argument */
+    while ((opt = getopt(argc, argv, "a:i:o:k:s:dpe:G")) != -1) {
+        switch (opt) {
+            case 'a': alg_name = optarg; break;
+            case 'i': inp      = optarg; break;
+            case 'o': outfile  = optarg; break;
+            case 'k': key      = optarg; break;
+            case 's': shift    = atoi(optarg); break;
+            case 'd': mode     = MODE_DECRYPT; break;
+            case 'p': otp      = 1;           break;
+            case 'e': encoding = optarg;      break;
+            case 'G': gen_key  = 1;           break;
             default:
                 usage(argv[0]);
                 return EXIT_FAILURE;
         }
     }
 
-    if (!algorithm_name) {
+    if (!alg_name) {
+        fprintf(stderr, "Error: Algorithm must be specified with -a\n");
         usage(argv[0]);
         return EXIT_FAILURE;
     }
 
-    /* Locate the chosen algorithm */
-    crypt_func chosen_crypt = NULL;
+    /* Find the algorithm */
+    crypt_func runner = NULL;
     for (size_t i = 0; i < NUM_ALGORITHMS; i++) {
-        if (strcmp(algorithm_name, algorithms[i].name) == 0) {
-            chosen_crypt = algorithms[i].crypt;
+        if (strcmp(alg_name, algorithms[i].name) == 0) {
+            runner = algorithms[i].crypt;
             break;
         }
     }
-    if (!chosen_crypt) {
-        fprintf(stderr, "Algorithm '%s' not found.\n", algorithm_name);
+    if (!runner) {
+        fprintf(stderr, "Error: Unknown algorithm '%s'\n", alg_name);
         usage(argv[0]);
         return EXIT_FAILURE;
     }
 
-    /* Key Generation mode: if -G is specified, generate a key */
-    if (gen_key_mode) {
-        char *gen_key = generate_key(algorithm_name, (input ? strlen(input) : 0));
-        if (!gen_key) {
-            fprintf(stderr, "Key generation failed.\n");
+    /* Key‐generation mode */
+    if (gen_key) {
+        /* Allow optional -i to control OTP length; else algorithms pick defaults */
+        size_t inlen = inp ? strlen(inp) : 0;
+        char *newkey = generate_key(alg_name, inlen);
+        if (!newkey) {
+            fprintf(stderr, "Error: Key generation failed\n");
             return EXIT_FAILURE;
         }
-        if (output_filename) {
-            FILE *kf = fopen(output_filename, "w");
-            if (!kf) {
-                perror("fopen");
-                free(gen_key);
-                return EXIT_FAILURE;
-            }
-            fprintf(kf, "%s", gen_key);
+        if (outfile) {
+            FILE *kf = fopen(outfile, "w");
+            if (!kf) { perror("fopen"); free(newkey); return EXIT_FAILURE; }
+            fprintf(kf, "%s", newkey);
             fclose(kf);
-            printf("Generated key saved to %s\n", output_filename);
+            printf("Key saved to %s\n", outfile);
         } else {
-            printf("Generated key: %s\n", gen_key);
+            printf("%s\n", newkey);
         }
-        free(gen_key);
+        free(newkey);
         return EXIT_SUCCESS;
     }
 
-    if (!input || !output_filename) {
+    /* Encryption/decryption mode requires input + output */
+    if (!inp || !outfile) {
+        fprintf(stderr, "Error: -i and -o are required unless using -G\n");
         usage(argv[0]);
         return EXIT_FAILURE;
     }
 
-    /* Process input and perform encryption/decryption */
-    char raw_input[MAX_BUFFER_SIZE];
-    memset(raw_input, 0, sizeof(raw_input));
-    if (mode == MODE_DECRYPT && encoding) {
-        if (strcmp(encoding, "base64") == 0) {
-            if (base64_decode(input, raw_input, sizeof(raw_input)) != 0) {
-                fprintf(stderr, "Base64 decoding failed.\n");
-                return EXIT_FAILURE;
-            }
-        } else {
-            fprintf(stderr, "Encoding '%s' not supported for decryption.\n", encoding);
-            return EXIT_FAILURE;
-        }
-    } else {
-        strncpy(raw_input, input, sizeof(raw_input)-1);
+    size_t inlen = strlen(inp);
+    if (inlen + 1 > MAX_BUFFER_SIZE) {
+        fprintf(stderr, "Error: input length %zu exceeds %d bytes\n",
+                inlen, MAX_BUFFER_SIZE - 1);
+        return EXIT_FAILURE;
     }
-
-    char crypt_output[MAX_BUFFER_SIZE];
-    memset(crypt_output, 0, sizeof(crypt_output));
-    if (chosen_crypt(raw_input, key, shift, mode, otp, crypt_output) != 0) {
-        fprintf(stderr, "Operation failed for algorithm '%s'.\n", algorithm_name);
+    if (otp && (!key || (size_t)strlen(key) != inlen)) {
+        fprintf(stderr, "Error: OTP mode requires key length == input length (%zu)\n",
+                inlen);
         return EXIT_FAILURE;
     }
 
-    char final_output[MAX_BUFFER_SIZE];
-    memset(final_output, 0, sizeof(final_output));
-    if (mode == MODE_ENCRYPT && encoding) {
+    /* Warn on insecure ECB mode */
+    if (strcmp(alg_name, "aes") == 0 || strcmp(alg_name, "des") == 0) {
+        fprintf(stderr,
+            "Warning: %s uses ECB mode, which is insecure for large or structured data.\n",
+            alg_name);
+    }
+
+    /* Block‐size alignment checks */
+    int block_size = 0;
+    if (strcmp(alg_name, "aes") == 0 || strcmp(alg_name, "rc6") == 0) {
+        block_size = 16;
+    } else if (strcmp(alg_name, "des") == 0
+            || strcmp(alg_name, "xtea") == 0
+            || strcmp(alg_name, "idea") == 0
+            || strcmp(alg_name, "cast5") == 0) {
+        block_size = 8;
+    }
+    if (block_size && (inlen % block_size) != 0) {
+        fprintf(stderr,
+            "Error: input length %zu not a multiple of %d (required by %s)\n",
+            inlen, block_size, alg_name);
+        return EXIT_FAILURE;
+    }
+
+    /* Prepare raw input buffer */
+    char raw[MAX_BUFFER_SIZE] = {0};
+    if (mode == MODE_DECRYPT && encoding) {
         if (strcmp(encoding, "base64") == 0) {
-            if (base64_encode(crypt_output, final_output, sizeof(final_output)) != 0) {
-                fprintf(stderr, "Base64 encoding failed.\n");
+            if (base64_decode(inp, raw, sizeof(raw)) != 0) {
+                fprintf(stderr, "Error: Base64 decode failed\n");
                 return EXIT_FAILURE;
             }
         } else {
-            fprintf(stderr, "Encoding '%s' not supported for encryption.\n", encoding);
+            fprintf(stderr, "Error: Unsupported encoding '%s'\n", encoding);
             return EXIT_FAILURE;
         }
     } else {
-        strncpy(final_output, crypt_output, sizeof(final_output)-1);
+        memcpy(raw, inp, inlen);
     }
 
-    FILE *fp = fopen(output_filename, "w");
-    if (!fp) {
+    /* Run the cipher */
+    char crypted[MAX_BUFFER_SIZE] = {0};
+    if (runner(raw, key ? key : "", shift, mode, otp, crypted) != 0) {
+        fprintf(stderr, "Error: %s operation failed\n", alg_name);
+        return EXIT_FAILURE;
+    }
+
+    /* Handle post‐processing (base64 on encrypt) */
+    char final[MAX_BUFFER_SIZE] = {0};
+    if (mode == MODE_ENCRYPT && encoding) {
+        if (strcmp(encoding, "base64") == 0) {
+            if (base64_encode(crypted, final, sizeof(final)) != 0) {
+                fprintf(stderr, "Error: Base64 encode failed\n");
+                return EXIT_FAILURE;
+            }
+        } else {
+            fprintf(stderr, "Error: Unsupported encoding '%s'\n", encoding);
+            return EXIT_FAILURE;
+        }
+    } else {
+        strcpy(final, crypted);
+    }
+
+    /* Write out */
+    FILE *outf = fopen(outfile, "w");
+    if (!outf) {
         perror("fopen");
         return EXIT_FAILURE;
     }
-    fprintf(fp, "%s", final_output);
-    fclose(fp);
+    fprintf(outf, "%s", final);
+    fclose(outf);
 
-    printf("Operation successful. Output written to %s\n", output_filename);
+    printf("Success: output written to %s\n", outfile);
     return EXIT_SUCCESS;
 }
 
