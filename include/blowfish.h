@@ -1,33 +1,34 @@
 #ifndef BLOWFISH_H
 #define BLOWFISH_H
 
-#include "algorithm.h"
-#include "blowfish_tables.h"
+#include <stdint.h>
 
-/*
- * Blowfish-64 in ECB mode with PKCS#7 padding.
+/* how many P‐subkeys and S‐boxes we have */
+#define BLOWFISH_SUBKEYS        18
+#define BLOWFISH_SBOXES          4
+#define BLOWFISH_SBOX_ENTRIES  256
+
+/* allowed key lengths */
+#define BLOWFISH_MIN_KEY_LENGTH  4
+#define BLOWFISH_MAX_KEY_LENGTH 56
+
+/**
+ * @brief  Encrypt or decrypt a NUL-terminated buffer with Blowfish-ECB + PKCS#7.
  *
- * - Key length: 4–56 bytes
- * - Block size: 8 bytes
- * - Encryption outputs hex-encoded ciphertext.
- * - Decryption parses hex, strips PKCS#7, and null-terminates.
- *
- * Parameters:
- *   input  : NUL-terminated plaintext (or hex ciphertext if decrypting)
- *   key    : binary-safe key, length [4..56].
- *   shift  : unused (set 0).
- *   mode   : MODE_ENCRYPT or MODE_DECRYPT.
- *   otp    : unused (must be 0).
- *   output : buffer large enough for result.
- *
- * Returns 0 on success, -1 on error.
+ * @param  input   plaintext (encrypt) or hex string (decrypt)
+ * @param  key     4–56 byte NUL-terminated key
+ * @param  shift   unused (for API conformance)
+ * @param  mode    0 = encrypt, 1 = decrypt (your MODE_ENCRYPT/MODE_DECRYPT)
+ * @param  otp     unused
+ * @param  output  caller-provided buffer to receive a NUL-terminated result
+ * @return 0 on success, –1 on failure
  */
 int blowfish_crypt(const char *input,
                    const char *key,
-                   int shift,
-                   mode_t mode,
-                   int otp,
-                   char *output);
+                   int         shift,
+                   int         mode,
+                   int         otp,
+                   char       *output);
 
 #endif /* BLOWFISH_H */
 

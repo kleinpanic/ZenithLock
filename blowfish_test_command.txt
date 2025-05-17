@@ -1,0 +1,6 @@
+gcc -Iinclude \
+    -o tests/blowfish_test \
+    tests/blowfish_test.c \
+    obj/blowfish.o \
+    -lcrypto
+

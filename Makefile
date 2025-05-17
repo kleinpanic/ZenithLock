@@ -51,3 +51,10 @@ uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/$(TARGET)
 	rm -f $(DESTDIR)$(MANDIR)/$(TARGET).1
 
+# at the bottom of your Makefile
+
+TEST_OBJS = obj/blowfish.o obj/algorithm.o
+
+tests/blowfish_test: tests/blowfish_test.c $(TEST_OBJS)
+	$(CC) $(CFLAGS) -Iinclude -o $@ $^ -lcrypto
+
